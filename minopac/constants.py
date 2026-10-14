@@ -1,4 +1,4 @@
-"""Central location for MiniPac tuning constants and asset paths."""
+"""Central location for MinoPac tuning constants and asset paths."""
 
 from pathlib import Path
 

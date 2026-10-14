@@ -11,15 +11,17 @@ If you have not yet installed git, please follow [this link](https://git-scm.com
 To get started, let's **clone the repository**, and set up our programming environment.
 Execute the following commands in your terminal where you want to create a folder for the assignment:
 ```bash
-git clone <repo_url>
-cd minopac
+git clone https://github.com/VU-IntroPython/Assignment_2.git
+cd Assignment_2
 conda activate <use the same environment you created for MinoBot (assignment 1) >
 ```
+Always run the game from this `Assignment_2` folder (the one that contains `main.py`), otherwise Python will not find the game files.
+
 --- 
 ### Project Structure
 The project is structured as follows:
 ```
-└── 📁MinoPac
+└── 📁Assignment_2
     └── 📁assets
         ├── MinoPac.png
     └── 📁levels
@@ -47,8 +49,10 @@ The project is structured as follows:
 - `minopac/`: The main game code.
 - `minopac/entities/`: Game entities like the player and ghosts.
 - `minopac/game.py`: The main game loop.
-- `minopac/graphics.py`: Pygame setup and drawing utilities.
-- `minopac/levels/`: Level layouts and loading logic.
+- `minopac/maze.py`: The maze: walls, pellets, grid/pixel conversions and path finding.
+- `minopac/sprites.py`: Loading and tinting the images (sprites) that are drawn on screen.
+- `minopac/constants.py`: Tuning values such as speeds, timers and the built-in level layout.
+- `levels/`: Level files that you will load in Step 6.
 
 
 ---
@@ -85,7 +89,7 @@ In this section, we will be mainly working on `minopac/game.py` where we defined
 
 1. Open the file `minopac/game.py`.
 2. Read this file from top to bottom. Identify the classes and methods defined in this file.
-3. find the `def draw(self):` method within the `Game` class.
+3. Find the `def draw(self) -> None:` method within the `Game` class.
 4. In the `draw(self)` method, locate the line where the player is drawn:
    ```python
    self.player.draw(self.screen)
@@ -97,7 +101,7 @@ In this section, we will be mainly working on `minopac/game.py` where we defined
    ghost_surface = get_ghost_sprite((255, 0, 0))
    ghost_pos = self.maze.grid_to_pixel((13, 11))
    ghost_rect = ghost_surface.get_rect(center=ghost_pos)
-   self.screen.blit(ghost_surface, ghost_pos)
+   self.screen.blit(ghost_surface, ghost_rect)
    ```
 
 After saving, run the game (so `python main.py`). You should see a ghost near the center of the screen, unmoving, as you play.
@@ -129,9 +133,9 @@ Just like Step 1, we’ll focus on getting something visible as quickly as possi
 
 **Steps:**
 
-1. Open `minopac/entities/ghost.py` and create the `Ghost` class. In `__init__`, you can do things similar to `Player` and set some important information: maze reference, spawn tile, `grid_pos`, `pixel_pos`, `movement_speed`. You can get the starting position using `maze.next_ghost_spawn_location`.
+1. Open `minopac/entities/ghost.py` and create the `Ghost` class. In `__init__`, you can do things similar to `Player` and set some important information: maze reference, spawn tile, `grid_pos`, `pixel_pos`, `movement_speed`. The constructor only needs the maze: `def __init__(self, maze: Maze) -> None:`. Inside it, get the spawn tile by calling `maze.next_ghost_spawn_location()` (every call gives the next `G` tile of the level).
 2. Add a simple `draw(surface)` method that should have almost exactly the same code as in our placeholder in the previous step. Remember to use the instance attributes where necessary: this function should draw this particular ghost.
-3. Switch over to `minopac/game.py` and replace `# TODO: Add the Ghosts here` with `self.ghosts = [Ghost(self.maze, spawn_tile)]` using the maze’s ghost spawn location `Maze.next_ghost_spawn_location`.
+3. Switch over to `minopac/game.py`. In the `reset` method, replace `# TODO: Add the Ghosts here` with `self.ghosts = [Ghost(self.maze)]`. `reset` runs when the game starts and every time it restarts, and it builds a fresh maze each time, so this is the one place where ghosts should be created.
 4. In `Game.draw`, right after `self.player.draw(self.screen)`, loop over `self.ghosts` and call `ghost.draw(self.screen)`. This should replace the placeholder code from Step 1.
 5. Run `python main.py`. You should now see the ghost class you just wrote being drawn through the actual game loop instead of the hard-coded sample.
 
@@ -143,13 +147,13 @@ Keep the workflow observational: you’ve already proven the screen can show a g
 ## 3. Make the Ghost Move, Then Think (`# TODO: Update/Plan the Ghost`)
 Files: `minopac/entities/ghost.py`, `minopac/game.py`.
 
-With drawing sorted, give the ghost life. Start with motion that ignores walls so you can watch the animation work, then we can start adding decisionmaking that follows the structure of the level.
+With drawing sorted, give the ghost life. Start with motion that ignores walls so you can watch the animation work, then we can start adding decision-making that follows the structure of the level.
 
 **Interpolation** in game movement refers to smoothly transitioning an entity's position between two points over time, rather than jumping instantly from one grid tile to the next. This creates fluid motion (like gliding or sliding) by calculating a position partway between the previous and next locations, based on how much of the movement time has elapsed. In code, this is often done using a "lerp" (linear interpolation) function to blend between start and end positions proportionally. You can see an example of this in the `Player` class. The interpolation is done using a variable called `dt`, which stands for delta time, which in turn stands for the amount of time that passed between frames.
 
 **Steps (Movement First):**
 
-1. Back in `Ghost`, implement `update(self, dt)` by copying the interpolation logic from `Player.update`. Track a timer per move, lerp between `target_grid_pos` and `grid_pos` with `maze.interpolate_pixel_position` to find the new `pixel_pos`.
+1. Back in `Ghost`, implement `update(self, dt)` by copying the interpolation logic from `Player.update`. Track a timer per move, lerp from `grid_pos` (start) to `target_grid_pos` (end) with `maze.interpolate_pixel_position` to find the new `pixel_pos`.
 2. Temporarily let the ghost ignore walls: hard-code it to always move to the right. Set the direction and use `maze.get_cell_in_direction` after completing a move to set the new `target_grid_pos`. The maze class already takes care of wrapping the screen so it should loop endlessly.
 3. Hook this into the game loop by replacing `# TODO: Update the Ghosts here` inside `Game.update` with a loop that calls `ghost.update(dt)` for every ghost. Run the game: the ghost should now glide smoothly even without brains.
 
@@ -193,15 +197,17 @@ With collisions working, it’s time to bring back the classic cast. You’ll ke
 
 **Tips:**
 - Note that you can use `get_ghost_sprite((250, 0, 0))` to get a red tinted ghost sprite, play around with the three numbers to get different colors. This way you can distinguish between the different ghosts.
-- For implementing more difficult behavior notice that there is `Maze.find_shortest_path`. Which will give you a list of all the cells that contain the shortest path from and to two target cells.
+- For implementing more difficult behavior notice that there is `Maze.find_shortest_path(start, end)`. It returns a list of the cells on the shortest path, **including** `start` as the first element, so the next tile to step to is `path[1]`. Watch out for two special cases:
+  - if `start == end` it returns `[start]` (there is no `path[1]`);
+  - if `start` or `end` is a wall, or no path exists, it returns `None`. This happens easily when you target a tile ahead of the player.
 
 **Steps:**
 
-1. Create `ChaserGhost(Ghost)` whose simply targets `player.grid_pos`. Instantiate one in `Game.__init__` so you can watch it doggedly follow the player.
-2. Create `AmbushGhost(Ghost)` that looks a few tiles ahead of the player using `player.direction`. Spawn it and confirm it tries to cut you off instead of trailing directly.
-3. Create `RandomGhost(Ghost)` that picks a random option from `_valid_options`, preferably avoiding immediate backtracking. This ghost keeps runs unpredictable, so test a few rounds to make sure it never walks through walls.
-4. Create `SpeedUpGhost(Ghost)` that moves at half speed (double the move time) and slowly speeds up over the course of the game. You can choose to implement this speedup with time or pelettes eaten.
-5. Update the constructor TODO to spawn all four ghosts, reset them alongside the player, and run a full playtest to ensure frightened mode, collisions, and resets still behave with multiple personalities on screen.
+1. Create `ChaserGhost(Ghost)` that simply targets `player.grid_pos`. Create one in `Game.reset` (where you created your first ghost) so you can watch it doggedly follow the player.
+2. Create `AmbushGhost(Ghost)` that looks a few tiles ahead of the player using `player.facing` (the direction the player is looking, e.g. `(1, 0)` for right). Spawn it and confirm it tries to cut you off instead of trailing directly.
+3. Create `RandomGhost(Ghost)` that picks a random tile from the open neighbouring tiles (the ones `maze.neighbors(self.grid_pos)` gives you; wrap it in `list(...)` to get a list), preferably avoiding immediate backtracking. The `random` module (`random.choice`) can help. This ghost keeps runs unpredictable, so test a few rounds to make sure it never walks through walls.
+4. Create `SpeedUpGhost(Ghost)` that moves at half speed (double the move time) and slowly speeds up over the course of the game. You can choose to implement this speedup with time or pellets eaten.
+5. Update `Game.reset` to spawn all four ghosts, reset them alongside the player, and run a full playtest to ensure frightened mode, collisions, and resets still behave with multiple personalities on screen.
 
 ### Core Concepts
 Inheritance keeps the physics identical while letting each subclass alter the “brain” portion. This isolates what changes (target selection, speed tweaks) from what stays the same (movement pipeline, frightened/eaten handling). The four behaviors also provide natural play-testing checkpoints: as soon as one ghost feels off, you know exactly which subclass to inspect.
@@ -216,7 +222,7 @@ Inheritance keeps the physics identical while letting each subclass alter the �
 ---
 
 ## 6. Load Levels From Files
-Replace the hard-coded `LEVEL_LAYOUT` with file-driven layouts. The repo already includes `levels/movement_sandbox.txt` and `levels/maze_wrap.txt` as functional alternatives plus `levels/broken_missing_player.txt` and `levels/broken_ragged.txt` that should trigger validation errors..
+Replace the hard-coded `LEVEL_LAYOUT` with file-driven layouts. The repo already includes `levels/movement_sandbox.txt` and `levels/maze_wrap.txt` as functional alternatives plus `levels/broken_missing_player.txt` and `levels/broken_ragged.txt` that should trigger validation errors.
 
 ### Core Concepts
 Reading level data from files demonstrates defensive programming: you must trust but verify user content. By validating rectangles, spawn markers, and error conditions, you prevent cryptic crashes and can surface friendly messages instead. This workflow mirrors real games that ship with modding support or level editors.
@@ -244,8 +250,8 @@ Reading level data from files demonstrates defensive programming: you must trust
    - Catch FileNotFoundError and give a user-friendly message.
 
 4. **Use the Loader in `Game`:**
-   - In `Game.__init__`, instead of using the old `LEVEL_LAYOUT`, call `load_level("levels/level1.txt")`.
-   - Pass the returned list of strings to `Maze.from_strings`.
+   - In `Game.__init__`, replace `self.level_layout = LEVEL_LAYOUT` with `self.level_layout = load_level("levels/level1.txt")`.
+   - That is the only change needed: `Game.reset` already passes `self.level_layout` to `Maze.from_strings`, and the window size is calculated from the maze, so levels of a different size also work.
 
 5. **Test Error Cases:**
    - Temporarily point the loader to `levels/broken_missing_player.txt` and `levels/broken_ragged.txt`.
@@ -260,7 +266,7 @@ Reading level data from files demonstrates defensive programming: you must trust
 ---
 
 ## 7. Bonus Goals (if you feel like it)
-- Make things look prettier! You can add animations that indicate that the frightened mode is almost finished, or anything you think that would give to game more juice.
+- Make things look prettier! You can add animations that indicate that the frightened mode is almost finished, or anything you think that would give the game more juice.
 - Come up with a ghost subtype of your own! Maybe it can have special powers like jumping over walls occasionally.
 - Implement player AI! Create a common superclass for `Player` and split this into `AIPlayer` and `HumanPlayer`.
 

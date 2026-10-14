@@ -1,4 +1,4 @@
-"""Entry point for launching the MiniPac game loop."""
+"""Entry point for launching the MinoPac game loop."""
 
 from minopac.game import Game
 

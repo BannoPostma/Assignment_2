@@ -16,28 +16,20 @@ from .vector import Vec2, vec_distance
 class Game:
     """Owns the pygame lifecycle plus high-level game-state transitions."""
 
-    def __init__(self):
-        """Create the pygame window, maze, and player.
+    def __init__(self) -> None:
+        """Create the pygame window and set up the first level.
 
         Returns:
             None: Initializes pygame state and core actors in place.
         """
         pygame.init()
         pygame.display.set_caption("MinoPac")
-        self.maze = Maze.from_strings(LEVEL_LAYOUT)
-        self.screen = pygame.display.set_mode((self.maze.pixel_width, self.maze.pixel_height))
         self.clock = pygame.time.Clock()
         self.font = pygame.font.Font(None, 24)
 
-        self.player = Player(self.maze)
-        
-        # TODO: Add the Ghosts here
-
-        self.score = 0
-        self.power_time_remaining = 0.0
-        self.game_over = False
-        self.win = False
-        self.moves_taken = 0
+        self.level_layout = LEVEL_LAYOUT
+        self.reset()
+        self.screen = pygame.display.set_mode((self.maze.pixel_width, self.maze.pixel_height))
 
     def run(self) -> None:
         """Execute the main game loop until the window is closed.
@@ -45,7 +37,6 @@ class Game:
         Returns:
             None: Blocks until pygame quits.
         """
-        self.reset()
         while True:
             dt = self.clock.tick(FPS) / 1000
             self.handle_events()
@@ -53,15 +44,17 @@ class Game:
             self.draw()
 
     def reset(self) -> None:
-        """Reset level state, score, and actors to their initial configuration.
+        """Build a fresh maze and actors, and reset score and timers.
+
+        Called once when the game starts and again on every restart.
 
         Returns:
             None
         """
-        self.maze = Maze.from_strings(LEVEL_LAYOUT)
+        self.maze = Maze.from_strings(self.level_layout)
         self.player = Player(self.maze)
-        
-        # TODO: Reset the Ghosts here
+
+        # TODO: Add the Ghosts here
 
         self.score = 0
         self.power_time_remaining = 0.0
@@ -186,7 +179,6 @@ class Game:
         self.player.reset()
         # TODO: Reset the Ghosts here
         self.power_time_remaining = 0.0
-        self.repeat_timer = self.player.movement_speed
 
     def draw(self) -> None:
         """Render the maze, actors, and HUD, then flip the display buffer.

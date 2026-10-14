@@ -7,7 +7,7 @@ from typing import Iterable, List, Sequence, Set
 
 import pygame
 
-from .constants import LEVEL_LAYOUT, TILE_SIZE
+from .constants import TILE_SIZE
 from .sprites import load_sprite
 from .vector import Vec2
 

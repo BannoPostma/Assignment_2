@@ -1,2 +1,2 @@
-"""Entity package exposing player/ghost components for MiniPac."""
+"""Entity package exposing player/ghost components for MinoPac."""
 
